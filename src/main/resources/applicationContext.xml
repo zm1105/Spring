@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="
+        http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/tx
+        http://www.springframework.org/schema/tx/spring-tx.xsd
+        http://www.springframework.org/schema/aop
+        http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+    <!--IOC注解扫描-->
+    <context:component-scan base-package="com.lagou"/>
+
+    <!--加载jdbc配置文件-->
+    <context:property-placeholder location="classpath:jdbc.properties"/>
+
+    <!--把数据库连接池交给IOC容器-->
+    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource">
+
+        <property name="driverClassName" value="${jdbc.driver}"></property>
+        <property name="url" value="${jdbc.url}"></property>
+        <property name="username" value="${jdbc.username}"></property>
+        <property name="password" value="${jdbc.password}"></property>
+    </bean>
+
+    <!--把JdbcTemplate交给IOC容器-->
+
+    <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+
+        <constructor-arg name="dataSource" ref="dataSource"></constructor-arg>
+    </bean>
+
+    <!--事务管理器-->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"></property>
+    </bean>
+
+    <!--  通知 MyAdvice 交给容器 -->
+    <bean id="myAdvice" class="com.lagou.advice.MyAdvice"></bean>
+
+    <!--通知增强-->
+    <tx:advice id="txAdvice" transaction-manager="transactionManager">
+        <!--定义事务的属性-->
+        <tx:attributes>
+            <!-- name对应切入点 com.lagou.service..*.*(..)的方法-->
+            <tx:method name="saveTitle" isolation="REPEATABLE_READ" propagation="REQUIRED" timeout="-1"
+                       read-only="false"/>
+        </tx:attributes>
+    </tx:advice>
+
+    <aop:config>
+        <!-- 切点抽取-->
+        <aop:pointcut id="myPoint" expression="execution(* com.lagou.service..*.*(..)) "/>
+
+        <!-- 事务切面配置-->
+        <aop:advisor advice-ref="txAdvice" pointcut-ref="myPoint"></aop:advisor>
+
+        <!-- 前置增强-->
+        <aop:aspect ref="myAdvice">
+            <aop:before method="before" pointcut-ref="myPoint"></aop:before>
+        </aop:aspect>
+    </aop:config>
+</beans>
